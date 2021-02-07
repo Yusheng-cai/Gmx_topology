@@ -1,3 +1,30 @@
+class atom_type:
+    """
+    Class that describes the atomtype representation in the GROMACS topology file
+    """
+    def __init__(self,line):
+        # name  at.num  mass charge ptype  sigma epsilon
+        if ";" in line:
+            line = line.split(";")[0].rstrip()
+
+        line = line.split()
+        self.name = line[0]
+        self.atnum = int(line[1])
+        self.mass = float(line[2])
+        self.charge = float(line[3])
+        self.ptype = line[4]
+        self.sigma = float(line[5])
+        self.epsilon = float(line[6])
+
+        self.str = "{0:>6}{1:>6d}{2:>9.3f}{3:>9.3f}{4:>6}{5:>12.5f}{6:>12.5f}\n".format(self.name,self.atnum,\
+                self.mass,self.charge,self.ptype,self.sigma,self.epsilon)
+
+    def __str__(self):
+        return "Atom type {} with mass {}.Sigma:{}, Epsilon:{}".format(self.name, self.mass, self.sigma,self.epsilon)
+    
+    def __repr__(self):
+        return self.__str__()
+
 class atom:
     """
     Class that describes how an atom is represented in the gromacs topology file

@@ -1,5 +1,5 @@
 import sys
-from .Molecule_properties import atom,bond,angle,dihedral
+from .Molecule_properties import atom_type,atom,bond,angle,dihedral
 
 
 class topology:
@@ -11,6 +11,7 @@ class topology:
         self.bonds_list,self.unique_bonds = self.get_bonds(self.info,self.atoms)
         self.angles_list,self.unique_angles = self.get_angles(self.info,self.atoms)
         self.dihedrals_list,self.unique_dihedrals = self.get_dihedrals(self.info,self.atoms)
+        self.atom_types_list = self.get_atomtypes(self.info)
 
     def read_dat(self):
         """
@@ -108,3 +109,46 @@ class topology:
             dihedrals_list.append(d) 
 
         return dihedrals_list,unique_dihedrals
+
+    def get_atomtypes(self,info):
+        # name  at.num  mass charge ptype sigma epsilon
+        atom_types = info["[ atomtypes ]"]
+        atom_types = [l for l in atom_types[1:] if not l.startswith(";")]
+        atom_types_list = []
+
+        for l in atom_types:
+            at = atom_type(l)
+            atom_types_list.append(at)
+
+        return atom_types_list
+
+    def write_ff(self,o_name):
+        unique_bonds = self.unique_bonds
+        unique_angles = self.unique_angles
+        unique_dihedrals = self.unique_dihedrals
+        atom_types_list = self.atom_types_list
+
+            
+        f = open(o_name,"w")
+
+        f.write("[ atomtypes ]\n")
+        for at in atom_types_list:
+            f.write(at.str)
+
+        f.write("\n")
+        f.write("[ bondtypes ]\n")
+
+        for b in unique_bonds:
+            f.write(b.str)
+
+        f.write("\n")
+        f.write("[ angletypes ]\n")
+        for a in unique_angles:
+            f.write(a.str)
+        
+        f.write("\n")
+        f.write("[ dihedraltypes ]\n")
+        for d in unique_dihedrals:
+            f.write(d.str)
+
+        f.close()
