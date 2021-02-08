@@ -16,7 +16,7 @@ class atom_type:
         self.sigma = float(line[5])
         self.epsilon = float(line[6])
 
-        self.str = "{0:>6}{1:>6d}{2:>9.3f}{3:>9.3f}{4:>6}{5:>12.5f}{6:>12.5f}\n".format(self.name,self.atnum,\
+        self.strff = "{0:>6}{1:>6d}{2:>9.3f}{3:>9.3f}{4:>6}{5:>12.5f}{6:>12.5f}\n".format(self.name,self.atnum,\
                 self.mass,self.charge,self.ptype,self.sigma,self.epsilon)
 
     def __str__(self):
@@ -41,9 +41,12 @@ class atom:
         self.resnr = line[2]
         self.residue = line[3]
         self.atom = line[4]
-        self.cgnr = line[5]
-        self.charge = line[6]
-        self.mass = line[7]
+        self.cgnr = int(line[5])
+        self.charge = float(line[6])
+        self.mass = float(line[7])
+
+        self.strmol = "{0:>6}{1:>6}{2:>6}{3:>7}{4:>7}{5:>6d}{6:>12.5f}{7:>12.5f}\n".format(self.nr,self.type,self.resnr,\
+                self.residue,self.atom,self.cgnr,self.charge,self.mass)
 
     def __eq__(self,other):
         if (self.type == other.type) & (self.mass == other.mass):
@@ -71,7 +74,10 @@ class bond:
         Nparams = N - 3
         
         self.atom1 = atominfo[int(line[0])]
+        self.atnum1 = int(line[0])
         self.atom2 = atominfo[int(line[1])]
+        self.atnum2 = int(line[1])
+
         self.funct = int(line[2])
         self.params = []
         self.Nparams = Nparams
@@ -80,10 +86,12 @@ class bond:
             self.params.append(line[i])
 
         if self.funct == 1 or self.funct == 2:
-            self.str = "{0:>6}{1:>6}{2:>6}{3:>9.3f}{4:>12.3f}\n".format(self.atom1.type,\
+            self.strff = "{0:>6}{1:>6}{2:>6}{3:>9.3f}{4:>12.3f}\n".format(self.atom1.type,\
                     self.atom2.type,\
                     self.funct,float(self.params[0]),float(self.params[1]))
-       
+        self.strmol = "{0:>6}{1:>6}\n".format(self.atnum1,\
+                    self.atnum2)
+ 
     def __eq__(self,other):
         if (self.atom1==other.atom1) and (self.atom2==other.atom2) and \
                 (self.funct == other.funct) and (self.params==other.params):
@@ -120,8 +128,14 @@ class angle:
         Nparams = N - 4
         
         self.atom1 = atominfo[int(line[0])]
+        self.atnum1 = int(line[0])
+
         self.atom2 = atominfo[int(line[1])]
+        self.atnum2 = int(line[1])
+
         self.atom3 = atominfo[int(line[2])]
+        self.atnum3 = int(line[2])
+
         self.funct = int(line[3])
         self.params = []
         self.Nparams = Nparams
@@ -130,9 +144,12 @@ class angle:
             self.params.append(line[i])
 
         if self.funct == 1 or self.funct == 2:
-            self.str = "{0:>6}{1:>6}{2:>6}{3:>6}{4:>9.3f}{5:>12.3f}\n".format(self.atom1.type,\
+            self.strff = "{0:>6}{1:>6}{2:>6}{3:>6}{4:>9.3f}{5:>12.3f}\n".format(self.atom1.type,\
                     self.atom2.type,self.atom3.type,\
                     self.funct,float(self.params[0]),float(self.params[1]))
+
+        self.strmol = "{0:>6}{1:>6}{2:>6}\n".format(self.atnum1,\
+                    self.atnum2,self.atnum3) 
 
     def __eq__(self,other):
         if (self.atom1==other.atom1) and (self.atom2==other.atom2) and \
@@ -164,9 +181,17 @@ class dihedral:
         N = len(line)
         
         self.atom1 = atominfo[int(line[0])]
+        self.atnum1 = int(line[0])
+
         self.atom2 = atominfo[int(line[1])]
+        self.atnum2 = int(line[1])
+
         self.atom3 = atominfo[int(line[2])]
+        self.atnum3 = int(line[2])
+
         self.atom4 = atominfo[int(line[3])]
+        self.atnum4 = int(line[3])
+
         self.funct = int(line[4])
         self.params = []
         for i in range(5,N):
@@ -175,17 +200,31 @@ class dihedral:
         if self.funct == 1 or self.funct==4 or self.funct==9:
             # funct = 1 is section 4.2.13 of gromacs manual 5.1.4 which has parameters phis,kphi,multiplicity
             # funct = 4 is section 4.2.12 of gromacs manual 5.1.4 which has parameters phis,kphi and multiplicity
-            self.str = "{0:>6}{1:>6}{2:>6}{3:>6}{4:>6}{5:>9.3f}{6:>9.3f}{7:>9d}\n".format(self.atom1.type,\
+            self.strff = "{0:>6}{1:>6}{2:>6}{3:>6}{4:>6}{5:>9.3f}{6:>9.3f}{7:>9d}\n".format(self.atom1.type,\
                     self.atom2.type,self.atom3.type,self.atom4.type,\
                     self.funct,float(self.params[0]),float(self.params[1]),int(self.params[2]))
         
         if self.funct == 3:
             # funct = 3 is RB dihedral in section 4.2.13 of gromacs manual 5.1.4 which has parameters C0, C1, C2, C3, C4, C5
-            self.str = "{0:>6}{1:>6}{2:>6}{3:>6}{4:>6}{5:>9.3}{6:>9.3f}{6:>9.3f}{7:9.3f}{8:9.3f}\n".format(self.atom1.type,\
+            self.strff = "{0:>6}{1:>6}{2:>6}{3:>6}{4:>6}{5:>9.3}{6:>9.3f}{6:>9.3f}{7:9.3f}{8:9.3f}\n".format(self.atom1.type,\
                     self.atom2.type,self.atom3.type,self.atom4.type,\
                     self.funct,float(self.params[0]),float(self.params[1]),float(self.params[2]),\
                     float(self.params[3]),float(self.params[4]))
 
+        self.strmol = "{0:>6}{1:>6}{2:>6}{3:>6}\n".format(self.atnum1,\
+                    self.atnum2,self.atnum3,self.atnum4)
+
+    def general_dihedral(self):
+        if self.funct == 1 or self.funct==4 or self.funct==9:
+            # funct = 1 is section 4.2.13 of gromacs manual 5.1.4 which has parameters phis,kphi,multiplicity
+            # funct = 4 is section 4.2.12 of gromacs manual 5.1.4 which has parameters phis,kphi and multiplicity
+            self.strff = "{0:>6}{1:>6}{2:>6}{3:>6}{4:>6}{5:>9.3f}{6:>9.3f}{7:>9d}\n".format("X",\
+                    self.atom2.type,self.atom3.type,"X",\
+                    self.funct,float(self.params[0]),float(self.params[1]),int(self.params[2]))
+        
+
+
+ 
     def __eq__(self,other):
         if (self.atom2==other.atom2) and (self.atom3==other.atom3) and \
                 (self.atom1==other.atom1) and (self.atom4==self.atom4) and (self.funct == other.funct) and (self.params==other.params):
