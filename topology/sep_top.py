@@ -2,15 +2,17 @@ from .Molecule_properties import atom_type,atom,bond,angle,dihedral
 
 
 class topology:
-    def __init__(self,file_name):
+    def __init__(self,file_name,mol_params=False):
         self.file_name = file_name
         self.info = self.read_dat()
+        self.mol_params = mol_params
 
         self.atoms = self.get_atoms(self.info)
-        self.bonds_list,self.unique_bonds = self.get_bonds(self.info,self.atoms)
-        self.angles_list,self.unique_angles = self.get_angles(self.info,self.atoms)
-        self.dihedrals_list,self.unique_dihedrals = self.get_dihedrals(self.info,self.atoms)
+        self.bonds_list,self.unique_bonds = self.get_bonds(self.info,self.atoms,self.mol_params)
+        self.angles_list,self.unique_angles = self.get_angles(self.info,self.atoms,self.mol_params)
+        self.dihedrals_list,self.unique_dihedrals = self.get_dihedrals(self.info,self.atoms,self.mol_params)
 
+        
         if "[ atomtypes ]" in self.info:
             self.atom_types_list = self.get_atomtypes(self.info)
 
@@ -77,11 +79,23 @@ class topology:
             atoms_dic[ix] = a 
             charge_total += a.charge
             ix += 1
+
         print("Total charge of the molecule is {}".format(charge_total))
+        print("Modifying...")
+        
+        charge_total = 0
+        if charge_total != 0:
+            for a in atoms_dic:
+                atoms_dic[a].charge += charge_total/len(atoms_dic)
+                charge_total += atoms_dic[a].charge
+
+        print("Modified charge is {}".format(charge_total))
+            
+
 
         return atoms_dic
 
-    def get_bonds(self,info,atominfo):
+    def get_bonds(self,info,atominfo,mol_params=False):
         """
         Function that obtains all the bonds in the molecule as well as all the unique bonds
 
@@ -102,14 +116,14 @@ class topology:
 
         # The first two lines are comments
         for l in bonds:
-            b = bond(l,atominfo)
+            b = bond(l,atominfo,mol_params)
             if b not in bonds_list:
                 unique_bonds.append(b)
             bonds_list.append(b) 
 
         return bonds_list,unique_bonds
 
-    def get_angles(self,info,atominfo):
+    def get_angles(self,info,atominfo,mol_params=False):
         """
         Function that obtains all the angles in the molecule as well as all the unique angles 
 
@@ -130,14 +144,14 @@ class topology:
 
         # The first two lines are comments
         for l in angles:
-            a = angle(l,atominfo)
+            a = angle(l,atominfo,mol_params)
             if a not in angles_list:
                 unique_angles.append(a)
             angles_list.append(a) 
 
         return angles_list,unique_angles
 
-    def get_dihedrals(self,info,atominfo):
+    def get_dihedrals(self,info,atominfo,mol_params=False):
         """
         Function that obtains all the dihedrals in the molecule as well as all the unique dihedrals
 
@@ -153,28 +167,35 @@ class topology:
         """
         dihedrals = info["[ dihedrals ]"]
         dihedrals = [l for l in dihedrals[1:] if not l.startswith(";")]
+        all_dihedral_fcn = []
         dihedrals_list = []
         unique_dihedrals = []
 
         # The first two lines are comments
         for l in dihedrals:
-            d = dihedral(l,atominfo)
+            d = dihedral(l,atominfo,mol_params)
+            all_dihedral_fcn.append(d)
+            # dihedrals list only contains all the unique dihedrals as in the atom numbering
             if d not in dihedrals_list:
-                unique_dihedrals.append(d)
-            dihedrals_list.append(d) 
+                dihedrals_list.append(d)
+        
+        # Append all the functions to each dihedral
+        for d1 in dihedrals_list:
+            for d2 in all_dihedral_fcn:
+                if d2 == d1:
+                    d1.append(d2)
 
-        unique_num = [1]*len(unique_dihedrals)
-
-        for i in range(len(unique_dihedrals)):
-            for d in dihedrals_list:
-                if d == unique_dihedrals[i]:
-                    unique_num[i] += 1
-
-        for i in range(len(unique_num)):
-            if unique_num[i] > 1:
-                unique_dihedrals[i].general_dihedral()
+        unique_dihedrals.append(dihedrals_list[0])
+        for d1 in dihedrals_list:
+            for d2 in unique_dihedrals:
+                unique = True
+                if d1.compare(d2):
+                    unique = False
+            if unique:
+                unique_dihedrals.append(d1)
 
         return dihedrals_list,unique_dihedrals
+
 
     def get_atomtypes(self,info):
         """
@@ -199,6 +220,60 @@ class topology:
             atom_types_list.append(at)
 
         return atom_types_list
+
+    def substitute_dihedrals(self,str_):
+        """
+        A function that substitutes dihedrals from 
+        The dihedral must be passed in the form:
+
+        ai aj ak al funct params
+
+        The number of params depends on the funct
+        """
+        str_ = str_.rstrip("\n")
+        split = str_.split()
+        type1 = split[0]
+        type2 = split[1]
+        type3 = split[2] 
+        type4 = split[3]
+        funct = int(split[4])
+        params = []
+        for i in range(5,len(split)):
+            params.append(split[i])
+
+
+        for i in range(len(self.dihedrals_list)):
+            d = self.dihedrals_list[i]
+            if (d.atom1.type == type1) & (d.atom2.type == type2) &\
+                    (d.atom3.type == type3) & (d.atom4.type == type4):
+                        if funct == 3:
+                            s = "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(d.atnum1,d.atnum2,d.atnum3,d.atnum4,\
+                                    funct,params[0],params[1],params[2],params[3],params[4],params[5])
+                            self.dihedrals_list[i] = dihedral(s,self.atoms,mol_params=True)
+            elif (d.atom1.type == type4) & (d.atom2.type == type3) &\
+                    (d.atom3.type == type2) & (d.atom4.type == type1):
+                        if funct == 3:
+                            s = "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(d.atnum1,d.atnum2,d.atnum3,d.atnum4,\
+                                    funct,params[0],params[1],params[2],params[3],params[4],params[5])
+                            self.dihedrals_list[i] = dihedral(s,self.atoms,mol_params=True)
+
+        for i in range(len(self.unique_dihedrals)):
+            d = self.unique_dihedrals[i]
+            if (d.atom1.type == type1) & (d.atom2.type == type2) &\
+                    (d.atom3.type == type3) & (d.atom4.type == type4):
+                        if funct == 3:
+                            s = "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(d.atnum1,d.atnum2,d.atnum3,d.atnum4,\
+                                    funct,params[0],params[1],params[2],params[3],params[4],params[5])
+                            self.unique_dihedrals[i] = dihedral(s,self.atoms,mol_params=True)
+            elif (d.atom1.type == type4) & (d.atom2.type == type3) &\
+                    (d.atom3.type == type2) & (d.atom4.type == type1):
+                        if funct == 3:
+                            s = "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(d.atnum1,d.atnum2,d.atnum3,d.atnum4,\
+                                    funct,params[0],params[1],params[2],params[3],params[4],params[5])
+                            self.unique_dihedrals[i] = dihedral(s,self.atoms,mol_params=True)
+
+
+
 
     def write_ff(self,o_name):
         """
@@ -263,10 +338,18 @@ class topology:
 
             
         f = open(o_name,"w")
-
+        for line in self.info["[ moleculetype ]"]:
+            f.write(line + "\n")
+        
+        f.write("\n")
         f.write("[ atoms ]\n")
         for key in atoms_dic:
             f.write(atoms_dic[key].strmol)
+
+        if "[ pairs ]" in self.info:
+            f.write("\n")
+            for line in self.info["[ pairs ]"]:
+                f.write(line + "\n")
 
         f.write("\n")
         f.write("[ bonds ]\n")
